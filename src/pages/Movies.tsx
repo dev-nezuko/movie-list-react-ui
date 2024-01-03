@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "components/Button";
 import { ReactComponent as PlusIcon } from "assets/plus-icon.svg";
 import { ReactComponent as LogoutIcon } from "assets/logout-icon.svg";
@@ -17,12 +18,13 @@ export const Movies = (): JSX.Element => {
 
   const handleLogout = async () => {
     try {
-      const userToken = localStorage.getItem('userToken');
+      const userToken = localStorage.getItem('userToken') || '';
       await logout(userToken);
+    } catch {
+      // Local sign-out must remain available when the API cannot be reached.
+    } finally {
       localStorage.removeItem('userToken');
       navigate(ROUTES.signin);
-    } catch (error) {
-      console.error(error);
     }
   };
 
@@ -47,7 +49,7 @@ export const Movies = (): JSX.Element => {
   if (movies.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[100vh]">
-        <h1 className="mb-6 text-5xl text-white">Your movie list is empty</h1>
+        <h1 className="mb-6 text-3xl sm:text-5xl text-white">Your movie list is empty</h1>
         <Button onClick={() => navigate(ROUTES.newMovie)}>Add a new movie</Button>
       </div>
     );
@@ -55,10 +57,10 @@ export const Movies = (): JSX.Element => {
 
   return (
     <div className="main-container">
-      <div className="flex items-center justify-between mb-32">
+      <div className="flex items-center justify-between mb-10">
         <span className="flex gap-2 items-center">
-          <h1 className="text-5xl text-white">My Movies</h1>
-          <button onClick={() => navigate(ROUTES.newMovie)}>
+          <h1 className="text-3xl sm:text-5xl text-white">My Movies</h1>
+          <button aria-label="Add movie" onClick={() => navigate(ROUTES.newMovie)}>
             <PlusIcon className="mt-2" />
           </button>
         </span>
@@ -66,37 +68,22 @@ export const Movies = (): JSX.Element => {
           Logout <LogoutIcon />
         </button>
       </div>
-      <div className="grid grid-cols-4 gap-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {movies.map((movie: Movie) => (
-          <MovieCard
-            key={movie._id}
-            title={movie.title}
-            year={String(movie.publishYear)}
-            image={
-              movie.image && movie.image.type === "Buffer"
-                ? convertBufferToImage(movie.image.data)
-                : ""
-            }
-            onEditClick={() => handleEditClick(movie)}
-          />
+          <MovieWithArtwork key={movie._id} movie={movie} onEdit={() => handleEditClick(movie)} />
         ))}
       </div>
     </div>
   );
 };
 
-// Helper function to convert a backend-provided Buffer-like array into an object URL.
-// In tests, window.URL.createObjectURL is mocked to avoid touching browser internals.
-const convertBufferToImage = (buffer: number[]) => {
-  if (!buffer || buffer.length === 0) {
-    return "";
-  }
-  const arrayBufferView = new Uint8Array(buffer);
-  const blob = new Blob([arrayBufferView], { type: "image/jpeg" });
-  const urlCreator: Pick<URL, "createObjectURL"> | typeof window = (window as any)
-    .URL || (window as any).webkitURL;
-  if (!urlCreator || typeof (urlCreator as any).createObjectURL !== "function") {
-    return "";
-  }
-  return (urlCreator as any).createObjectURL(blob);
-};
+function MovieWithArtwork({ movie, onEdit }: { movie: Movie; onEdit: () => void }) {
+  const [imageUrl, setImageUrl] = useState('');
+  useEffect(() => {
+    if (!movie.image?.data.length) { setImageUrl(''); return; }
+    const url = URL.createObjectURL(new Blob([new Uint8Array(movie.image.data)]));
+    setImageUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [movie.image]);
+  return <MovieCard title={movie.title} year={String(movie.publishYear)} image={imageUrl || '/poster-placeholder.svg'} onEditClick={onEdit} />;
+}

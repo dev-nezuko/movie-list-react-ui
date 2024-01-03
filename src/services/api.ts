@@ -1,4 +1,4 @@
-const BASE_URL = process.env.REACT_APP_SERVER_URL;
+const BASE_URL = process.env.REACT_APP_SERVER_URL || "http://127.0.0.1:3001";
 
 /**
  * Attempts to log in the user with the provided credentials.
@@ -52,7 +52,6 @@ export const login = async (values: any): Promise<string> => {
   
       return true;
     } catch (error) {
-      console.error(error);
       throw error;
     }
   };
@@ -81,7 +80,6 @@ export const login = async (values: any): Promise<string> => {
       const data = await response.json();
       return data.movies;
     } catch (error) {
-      console.error(error);
       throw error;
     }
   };
